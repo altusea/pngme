@@ -8,58 +8,68 @@ use crate::{Error, Result};
 /// http://www.libpng.org/pub/png/spec/1.2/PNG-Structure.html
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChunkType {
-    // Write me!
+    bytes: [u8; 4],
 }
 
 impl ChunkType {
     /// Returns the raw bytes contained in this chunk
     pub fn bytes(&self) -> [u8; 4] {
-        todo!()
+        self.bytes
     }
 
     /// Returns the property state of the first byte as described in the PNG spec
     pub fn is_critical(&self) -> bool {
-        todo!()
+        nth_bit(self.bytes[0], 5)
     }
 
     /// Returns the property state of the second byte as described in the PNG spec
     pub fn is_public(&self) -> bool {
-        todo!()
+        nth_bit(self.bytes[1], 5)
     }
 
     /// Returns the property state of the third byte as described in the PNG spec
     pub fn is_reserved_bit_valid(&self) -> bool {
-        todo!()
+        nth_bit(self.bytes[2], 5)
     }
 
     /// Returns the property state of the fourth byte as described in the PNG spec
     pub fn is_safe_to_copy(&self) -> bool {
-        todo!()
+        !nth_bit(self.bytes[3], 5)
     }
 
     /// Returns true if the reserved byte is valid and all four bytes are represented by the characters A-Z or a-z.
     /// Note that this chunk type should always be valid as it is validated during construction.
     pub fn is_valid(&self) -> bool {
-        todo!()
+        self.bytes.iter().all(u8::is_ascii_alphabetic) && self.is_reserved_bit_valid()
     }
 
     /// Valid bytes are represented by the characters A-Z or a-z
     pub fn is_valid_byte(byte: u8) -> bool {
-        todo!()
+        matches!(byte, 65..=90 | 97..=122)
     }
+}
+
+#[inline]
+fn nth_bit(num: u8, n: usize) -> bool {
+    num & (1 << n) == 0
 }
 
 impl TryFrom<[u8; 4]> for ChunkType {
     type Error = Error;
 
-    fn try_from(bytes: [u8; 4]) -> Result<Self> {
-        todo!()
+    fn try_from(bytes: [u8; 4]) -> Result<ChunkType> {
+        for byte in bytes {
+            if !Self::is_valid_byte(byte) {
+                return Err(Error::InvalidByteValues);
+            }
+        }
+        Ok(Self { bytes })
     }
 }
 
 impl fmt::Display for ChunkType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        write!(f, "{}", String::from_utf8_lossy(&self.bytes))
     }
 }
 
@@ -67,7 +77,14 @@ impl FromStr for ChunkType {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        todo!()
+        let bytes = s.as_bytes();
+        if bytes.len() != 4 {
+            return Err(Error::InvalidStringLength);
+        }
+
+        let mut b: [u8; 4] = [0; 4];
+        b.copy_from_slice(bytes);
+        Self::try_from(b)
     }
 }
 
